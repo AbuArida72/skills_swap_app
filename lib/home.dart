@@ -1,43 +1,101 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatelessWidget {
   final user = FirebaseAuth.instance.currentUser;
 
-  // Static sample data
-  final List<Map<String, String>> trendingSkills = [
-    {'title': 'Photography', 'description': 'Learn to shoot like a pro'},
-    {'title': 'Guitar', 'description': 'Basic chords and strumming patterns'},
-    {'title': 'Cooking', 'description': 'Easy recipes for beginners'},
-  ];
-
-  final List<Map<String, String>> yourSkills = [
-    {'title': 'Flutter Development', 'description': 'Build cross-platform apps'},
-    {'title': 'Graphic Design', 'description': 'Create stunning visuals'},
-  ];
+  HomeScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text('User not logged in')),
+      );
+    }
+
     return Scaffold(
-      // Remove back arrow from AppBar by setting automaticallyImplyLeading to false
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text('Skill Swap'),
+        automaticallyImplyLeading: true, // shows hamburger menu automatically
+        title: const Text('Skill Swap'),
         backgroundColor: Colors.deepPurple,
-        actions: [
-          IconButton(
-              icon: Icon(Icons.add),
-              onPressed: () => Navigator.pushNamed(context, '/skills')),
-          IconButton(
-              icon: Icon(Icons.person),
-              onPressed: () => Navigator.pushNamed(context, '/profile')),
-          IconButton(
-              icon: Icon(Icons.logout),
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-                Navigator.pushReplacementNamed(context, '/login');
-              }),
-        ],
+      ),
+      drawer: Drawer(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.deepPurple.shade700, Colors.deepPurple.shade200],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(color: Colors.deepPurple.shade800),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.school, size: 64, color: Colors.white),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Skill Swap',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.home, color: Colors.white),
+                title: const Text('Home', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context); // close drawer
+                  Navigator.pushReplacementNamed(context, '/home');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.add, color: Colors.white),
+                title: const Text('Add Skill', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/skills');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.school, color: Colors.white),
+                title: const Text('My Courses', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/courses');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person, color: Colors.white),
+                title: const Text('Profile', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/profile');
+                },
+              ),
+              const Divider(color: Colors.white54),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.white),
+                title: const Text('Logout', style: TextStyle(color: Colors.white)),
+                onTap: () async {
+                  await FirebaseAuth.instance.signOut();
+                  Navigator.pop(context);
+                  Navigator.pushReplacementNamed(context, '/login');
+                },
+              ),
+            ],
+          ),
+        ),
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -47,61 +105,81 @@ class HomeScreen extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
         ),
-        padding: EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            Text(
-              'Trending Skills',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 10),
-            ...trendingSkills.map((skill) => Card(
-                  color: Colors.deepPurple.shade400,
-                  child: ListTile(
-                    title: Text(
-                      skill['title']!,
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      skill['description']!,
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    onTap: () {
-                      // TODO: Navigate to skill detail if needed
-                    },
+        padding: const EdgeInsets.all(16),
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('skills')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Colors.white));
+            }
+            if (snapshot.hasError) {
+              return Center(
+                  child: Text('Error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.white)));
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(
+                  child: Text('No skills found.',
+                      style: TextStyle(color: Colors.white)));
+            }
+
+            final docs = snapshot.data!.docs;
+            final yourSkills =
+                docs.where((doc) => doc['ownerId'] == user!.uid).toList();
+            final trendingSkills =
+                docs.where((doc) => doc['ownerId'] != user!.uid).toList();
+
+            Widget buildSkillCard(DocumentSnapshot doc, Color color) {
+              return Card(
+                key: ValueKey(doc.id),
+                color: color,
+                child: ListTile(
+                  title: Text(
+                    doc['title'] ?? '',
+                    style: const TextStyle(color: Colors.white),
                   ),
-                )),
-            SizedBox(height: 30),
-            Text(
-              'Your Registered Skills',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 10),
-            ...yourSkills.map((skill) => Card(
-                  color: Colors.deepPurple.shade600,
-                  child: ListTile(
-                    title: Text(
-                      skill['title']!,
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      skill['description']!,
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    onTap: () {
-                      // TODO: Show skill details or edit
-                    },
+                  subtitle: Text(
+                    doc['description'] ?? '',
+                    style: const TextStyle(color: Colors.white70),
                   ),
-                )),
-          ],
+                  onTap: () {
+                    Navigator.pushNamed(context, '/details', arguments: doc);
+                  },
+                ),
+              );
+            }
+
+            return ListView(
+              children: [
+                const Text(
+                  'Trending Skills',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...trendingSkills
+                    .map((doc) => buildSkillCard(doc, Colors.deepPurple.shade400)),
+                const SizedBox(height: 30),
+                const Text(
+                  'Your Registered Skills',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...yourSkills
+                    .map((doc) => buildSkillCard(doc, Colors.deepPurple.shade600)),
+              ],
+            );
+          },
         ),
       ),
     );

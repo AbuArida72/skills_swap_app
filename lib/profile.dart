@@ -2,30 +2,132 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
+  
+  @override
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  final _usernameController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _oldPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+
+  String? _profileImageUrl;
+  bool _loading = false;
+  String? _error;
+
+  final User? user = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    if (user != null) {
+      _emailController.text = user!.email ?? '';
+      FirebaseFirestore.instance.collection('users').doc(user!.uid).get().then((doc) {
+        if (doc.exists) {
+          final data = doc.data()!;
+          _usernameController.text = data['username'] ?? '';
+          _bioController.text = data['bio'] ?? '';
+          setState(() {
+            _profileImageUrl = data['profileImageUrl'];
+          });
+        }
+      });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      if (_emailController.text.trim() != user!.email) {
+        if (_oldPasswordController.text.isEmpty) {
+          setState(() {
+            _error = 'Please enter your current password to update email.';
+            _loading = false;
+          });
+          return;
+        }
+        final credential = EmailAuthProvider.credential(
+          email: user!.email!,
+          password: _oldPasswordController.text,
+        );
+        await user!.reauthenticateWithCredential(credential);
+        await user!.updateEmail(_emailController.text.trim());
+      }
+
+      if (_newPasswordController.text.isNotEmpty) {
+        if (_oldPasswordController.text.isEmpty) {
+          setState(() {
+            _error = 'Please enter your current password to update password.';
+            _loading = false;
+          });
+          return;
+        }
+        final credential = EmailAuthProvider.credential(
+          email: user!.email!,
+          password: _oldPasswordController.text,
+        );
+        await user!.reauthenticateWithCredential(credential);
+        await user!.updatePassword(_newPasswordController.text);
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+        'username': _usernameController.text.trim(),
+        'bio': _bioController.text.trim(),
+        'profileImageUrl': _profileImageUrl ?? '',
+        'email': _emailController.text.trim(),
+      }, SetOptions(merge: true));
+
+      setState(() {
+        _error = 'Profile updated successfully!';
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  void _pickProfileImage() {
+    // TODO: Implement image picker and upload
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _bioController.dispose();
+    _emailController.dispose();
+    _oldPasswordController.dispose();
+    _newPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
       return Scaffold(
         body: Center(child: Text('Not logged in')),
       );
     }
 
-    final userSkillsStream = FirebaseFirestore.instance
-        .collection('skills')
-        .where('userId', isEqualTo: user.uid)
-        .snapshots();
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
-        backgroundColor: Colors.deepPurple,
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('My Profile'), backgroundColor: Colors.deepPurple),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -34,95 +136,138 @@ class ProfileScreen extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
         ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              elevation: 8,
-              color: Colors.white.withOpacity(0.9),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Email: ${user.email ?? "No email"}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.deepPurple,
+              child: IntrinsicHeight(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            _error!,
+                            style: TextStyle(
+                              color: _error!.contains('success') ? Colors.greenAccent : Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      GestureDetector(
+                        onTap: _pickProfileImage,
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                              ? NetworkImage(_profileImageUrl!)
+                              : null,
+                          child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                              ? const Icon(Icons.person, size: 50, color: Colors.white70)
+                              : null,
+                          backgroundColor: Colors.deepPurple.shade300,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _usernameController,
+                        decoration: InputDecoration(
+                          labelText: 'Username',
+                          labelStyle: const TextStyle(color: Colors.white),
+                          filled: true,
+                          fillColor: Colors.white24,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Username cannot be empty' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _bioController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: 'Bio',
+                          labelStyle: const TextStyle(color: Colors.white),
+                          filled: true,
+                          fillColor: Colors.white24,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          labelStyle: const TextStyle(color: Colors.white),
+                          filled: true,
+                          fillColor: Colors.white24,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return 'Email cannot be empty';
+                          if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w]{2,4}').hasMatch(val)) {
+                            return 'Enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _oldPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Current Password (required to change email/password)',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          filled: true,
+                          fillColor: Colors.white12,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _newPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'New Password',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          filled: true,
+                          fillColor: Colors.white12,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        validator: (val) {
+                          if (val != null && val.isNotEmpty && val.length < 6) {
+                            return 'Password must be at least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const Spacer(),
+                      _loading
+                          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                          : ElevatedButton(
+                              onPressed: _saveProfile,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                backgroundColor: Colors.deepPurpleAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Save Changes', style: TextStyle(fontSize: 18)),
+                            ),
+                    ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'My Skills:',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: [
-                  Shadow(
-                    offset: Offset(0, 1),
-                    blurRadius: 4,
-                    color: Colors.black54,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: userSkillsStream,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return const Center(child: Text('Error loading skills'));
-                    }
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final skills = snapshot.data!.docs;
-
-                    if (skills.isEmpty) {
-                      return const Center(
-                          child: Text('No skills posted yet.',
-                              style: TextStyle(fontSize: 16)));
-                    }
-
-                    return ListView.builder(
-                      itemCount: skills.length,
-                      itemBuilder: (context, index) {
-                        final skill = skills[index];
-                        return ListTile(
-                          title: Text(skill['title'],
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.deepPurple)),
-                          subtitle: Text(skill['description']),
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 20),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

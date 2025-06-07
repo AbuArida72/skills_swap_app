@@ -11,6 +11,8 @@ import 'skills.dart';
 import 'details.dart';
 import 'home.dart';
 import 'profile.dart';
+import 'courses.dart';  // add this import
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +44,7 @@ class MyApp extends StatelessWidget {
         '/skills': (context) =>  AddSkillScreen(),
         '/details': (context) =>  SkillDetailScreen(),
         '/profile': (context) =>  ProfileScreen(),
+        '/courses': (context) => EnrolledCoursesScreen(), 
       },
     );
   }
