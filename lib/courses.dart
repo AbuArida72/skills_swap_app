@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'details.dart';
 
 class EnrolledCoursesScreen extends StatefulWidget {
   const EnrolledCoursesScreen({Key? key}) : super(key: key);
@@ -49,6 +50,36 @@ class _EnrolledCoursesScreenState extends State<EnrolledCoursesScreen> {
     }
   }
 
+  Future<void> openSkillDetail(String courseName) async {
+    final skillName = courseName.replaceAll(' Course', '').trim();
+
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('skills')
+          .where('title', isEqualTo: skillName)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final skillDoc = querySnapshot.docs.first;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SkillDetailScreen(skill: skillDoc),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Skill "$skillName" not found')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading skill details: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,27 +95,65 @@ class _EnrolledCoursesScreenState extends State<EnrolledCoursesScreen> {
             end: Alignment.bottomRight,
           ),
         ),
-        padding: const EdgeInsets.all(16),
-        child: loading
-            ? const Center(child: CircularProgressIndicator(color: Colors.white))
-            : error != null
-                ? Center(child: Text(error!, style: const TextStyle(color: Colors.white)))
-                : enrolledCourses.isEmpty
-                    ? const Center(child: Text('No enrolled courses yet.', style: TextStyle(color: Colors.white)))
-                    : ListView.builder(
-                        itemCount: enrolledCourses.length,
-                        itemBuilder: (context, index) {
-                          final course = enrolledCourses[index];
-                          return Card(
-                            color: Colors.white.withOpacity(0.9),
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            child: ListTile(
-                              title: Text(course, style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)),
-                              leading: const Icon(Icons.book, color: Colors.deepPurple),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: loading
+                ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                : error != null
+                    ? Center(
+                        child: Text(
+                          error!,
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : enrolledCourses.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No enrolled courses yet.',
+                              style: TextStyle(color: Colors.white, fontSize: 18),
                             ),
-                          );
-                        },
-                      ),
+                          )
+                        : ListView.separated(
+                            itemCount: enrolledCourses.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final course = enrolledCourses[index];
+
+                              return Material(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(16),
+                                child: InkWell(
+                                  onTap: () => openSkillDetail(course),
+                                  borderRadius: BorderRadius.circular(16),
+                                  splashColor: Colors.deepPurpleAccent.withOpacity(0.2),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.book_rounded, size: 32, color: Colors.white),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Text(
+                                            course,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white54),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+          ),
+        ),
       ),
     );
   }

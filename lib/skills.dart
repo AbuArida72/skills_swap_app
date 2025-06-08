@@ -11,68 +11,43 @@ class AddSkillScreen extends StatefulWidget {
 
 class _AddSkillScreenState extends State<AddSkillScreen> {
   final _titleController = TextEditingController();
-  final _descController = TextEditingController();
-  String _selectedLocation = 'Amman'; // Default location
+  final _descriptionController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  String _location = 'Amman';
   bool _loading = false;
-  String? _error;
-
-  final List<String> _locations = ['Amman', 'Aqaba', 'Irbid'];
-
-  Future<void> _addSkill() async {
   final user = FirebaseAuth.instance.currentUser;
 
-  if (user == null) {
-    setState(() {
-      _error = "You must be logged in.";
-    });
-    return;
+  final List<String> _locations = ['Amman', 'Aqaba', 'Irbid', 'Online'];
+
+  Future<void> _addSkill() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (user == null) return;
+
+    setState(() => _loading = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('skills').add({
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'location': _location,
+        'ownerId': user!.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding skill: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
-  if (_titleController.text.trim().isEmpty) {
-    setState(() {
-      _error = "Title cannot be empty";
-    });
-    return;
-  }
-
-  setState(() {
-    _loading = true;
-    _error = null;
-  });
-
-  try {
-    // Add Skill first
-    DocumentReference skillRef = await FirebaseFirestore.instance.collection('skills').add({
-      'title': _titleController.text.trim(),
-      'description': _descController.text.trim(),
-      'ownerId': user.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-      // Add other fields if needed
-    });
-
-    // Create a corresponding Course
-    await FirebaseFirestore.instance.collection('courses').add({
-      'skillId': skillRef.id,
-      'courseName': '${_titleController.text.trim()} Course',
-      'ownerId': user.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    Navigator.pop(context);
-  } catch (e) {
-    setState(() {
-      _error = e.toString();
-    });
-  } finally {
-    setState(() {
-      _loading = false;
-    });
-  }
-}
 
   @override
   void dispose() {
     _titleController.dispose();
-    _descController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -80,101 +55,87 @@ class _AddSkillScreenState extends State<AddSkillScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Skill'),
+        title: const Text('Add New Skill'),
         backgroundColor: Colors.deepPurple,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF6D0EB5), Color(0xFF4059F1)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        // Use SafeArea and SingleChildScrollView to take full screen and enable scrolling
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    TextField(
-                      controller: _titleController,
-                      decoration: InputDecoration(
-                        labelText: 'Skill Title',
-                        labelStyle: const TextStyle(color: Colors.white),
-                        filled: true,
-                        fillColor: Colors.white24,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
-                      style: const TextStyle(color: Colors.white),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Card(
+          elevation: 12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Create a Skill',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
                     ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _descController,
-                      decoration: InputDecoration(
-                        labelText: 'Description',
-                        labelStyle: const TextStyle(color: Colors.white),
-                        filled: true,
-                        fillColor: Colors.white24,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
-                      maxLines: 4,
-                      style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 20),
+
+                  TextFormField(
+                    controller: _titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Skill Title',
+                      border: OutlineInputBorder(),
                     ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedLocation,
-                      items: _locations
-                          .map((loc) => DropdownMenuItem(
-                                value: loc,
-                                child: Text(loc),
-                              ))
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedLocation = val;
-                          });
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Location',
-                        labelStyle: const TextStyle(color: Colors.white),
-                        filled: true,
-                        fillColor: Colors.white24,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
-                      dropdownColor: Colors.deepPurple,
-                      style: const TextStyle(color: Colors.white),
+                    validator: (value) => (value == null || value.isEmpty) ? 'Enter a skill title' : null,
+                  ),
+                  const SizedBox(height: 20),
+
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Skill Description',
+                      border: OutlineInputBorder(),
                     ),
-                    const Spacer(),
-                    _loading
-                        ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                        : ElevatedButton(
-                            onPressed: _addSkill,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              backgroundColor: Colors.deepPurpleAccent,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: const Text('Post Skill', style: TextStyle(fontSize: 18)),
-                          ),
-                  ],
-                ),
+                    validator: (value) => (value == null || value.isEmpty) ? 'Enter a description' : null,
+                  ),
+                  const SizedBox(height: 20),
+
+                  Text(
+                    'Select Location',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.deepPurple.shade700),
+                  ),
+                  const SizedBox(height: 8),
+
+                  DropdownButtonFormField<String>(
+                    value: _location,
+                    items: _locations.map((loc) => DropdownMenuItem(
+                      value: loc,
+                      child: Text(loc),
+                    )).toList(),
+                    onChanged: (value) => setState(() => _location = value!),
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _addSkill,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _loading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Add Skill', style: TextStyle(fontSize: 18)),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

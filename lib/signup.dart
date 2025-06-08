@@ -33,7 +33,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       User? user = userCredential.user;
 
-      // ✅ Save user data to Firestore
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
         'email': _emailController.text.trim(),
         'username': _usernameController.text.trim(),

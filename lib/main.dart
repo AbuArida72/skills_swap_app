@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 
 // Screens
-import 'splash.dart';
 import 'welcome.dart';
 import 'login.dart';
 import 'signup.dart';
@@ -11,8 +11,7 @@ import 'skills.dart';
 import 'details.dart';
 import 'home.dart';
 import 'profile.dart';
-import 'courses.dart';  // add this import
-
+import 'courses.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,15 +35,22 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) =>  SplashScreen(),
-        '/welcome': (context) =>  WelcomeScreen(),
-        '/login': (context) =>  LoginScreen(),
-        '/signup': (context) =>  RegisterScreen(),
-        '/home': (context) =>  HomeScreen(),
-        '/skills': (context) =>  AddSkillScreen(),
-        '/details': (context) =>  SkillDetailScreen(),
-        '/profile': (context) =>  ProfileScreen(),
-        '/courses': (context) => EnrolledCoursesScreen(), 
+        '/': (context) => WelcomeScreen(),
+        '/login': (context) => LoginScreen(),
+        '/signup': (context) => RegisterScreen(),
+        '/home': (context) => HomeScreen(),
+        '/skills': (context) => AddSkillScreen(),
+        '/profile': (context) => ProfileScreen(),
+        '/courses': (context) => EnrolledCoursesScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/details') {
+          final skill = settings.arguments as DocumentSnapshot;
+          return MaterialPageRoute(
+            builder: (context) => SkillDetailScreen(skill: skill),
+          );
+        }
+        return null;
       },
     );
   }

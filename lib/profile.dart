@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
-  
+
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
 }
@@ -105,7 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _pickProfileImage() {
-    // TODO: Implement image picker and upload
+    // Future implementation
   }
 
   @override
@@ -121,13 +121,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return Scaffold(
-        body: Center(child: Text('Not logged in')),
-      );
+      return const Scaffold(body: Center(child: Text('Not logged in')));
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile'), backgroundColor: Colors.deepPurple),
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        backgroundColor: Colors.deepPurple,
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -136,138 +137,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
             end: Alignment.bottomRight,
           ),
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top,
-              ),
-              child: IntrinsicHeight(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_error != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            _error!,
-                            style: TextStyle(
-                              color: _error!.contains('success') ? Colors.greenAccent : Colors.redAccent,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      GestureDetector(
-                        onTap: _pickProfileImage,
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                              ? NetworkImage(_profileImageUrl!)
-                              : null,
-                          child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                              ? const Icon(Icons.person, size: 50, color: Colors.white70)
-                              : null,
-                          backgroundColor: Colors.deepPurple.shade300,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          labelText: 'Username',
-                          labelStyle: const TextStyle(color: Colors.white),
-                          filled: true,
-                          fillColor: Colors.white24,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                        validator: (val) => val == null || val.trim().isEmpty ? 'Username cannot be empty' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _bioController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          labelText: 'Bio',
-                          labelStyle: const TextStyle(color: Colors.white),
-                          filled: true,
-                          fillColor: Colors.white24,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: const TextStyle(color: Colors.white),
-                          filled: true,
-                          fillColor: Colors.white24,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                        validator: (val) {
-                          if (val == null || val.isEmpty) return 'Email cannot be empty';
-                          if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w]{2,4}').hasMatch(val)) {
-                            return 'Enter a valid email';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _oldPasswordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'Current Password (required to change email/password)',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          filled: true,
-                          fillColor: Colors.white12,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _newPasswordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'New Password',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          filled: true,
-                          fillColor: Colors.white12,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                        validator: (val) {
-                          if (val != null && val.isNotEmpty && val.length < 6) {
-                            return 'Password must be at least 6 characters';
-                          }
-                          return null;
-                        },
-                      ),
-                      const Spacer(),
-                      _loading
-                          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                          : ElevatedButton(
-                              onPressed: _saveProfile,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                backgroundColor: Colors.deepPurpleAccent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text('Save Changes', style: TextStyle(fontSize: 18)),
-                            ),
-                    ],
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: _error!.contains('success') ? Colors.greenAccent : Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              Center(
+                child: GestureDetector(
+                  onTap: _pickProfileImage,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                        ? NetworkImage(_profileImageUrl!)
+                        : null,
+                    child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                        ? const Icon(Icons.person, size: 50, color: Colors.white70)
+                        : null,
+                    backgroundColor: Colors.deepPurple.shade300,
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: 24),
+              _buildInputCard(
+                label: 'Username',
+                controller: _usernameController,
+                validator: (val) => val == null || val.trim().isEmpty ? 'Username cannot be empty' : null,
+              ),
+              const SizedBox(height: 16),
+              _buildInputCard(
+                label: 'Bio',
+                controller: _bioController,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              _buildInputCard(
+                label: 'Email',
+                controller: _emailController,
+                validator: (val) {
+                  if (val == null || val.isEmpty) return 'Email cannot be empty';
+                  if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w]{2,4}').hasMatch(val)) {
+                    return 'Enter a valid email';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              _buildInputCard(
+                label: 'Current Password',
+                controller: _oldPasswordController,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              _buildInputCard(
+                label: 'New Password',
+                controller: _newPasswordController,
+                obscureText: true,
+                validator: (val) {
+                  if (val != null && val.isNotEmpty && val.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              _loading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                  : ElevatedButton(
+                      onPressed: _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Save Changes', style: TextStyle(fontSize: 18)),
+                    ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputCard({
+    required String label,
+    required TextEditingController controller,
+    int maxLines = 1,
+    bool obscureText = false,
+    String? Function(String?)? validator,
+  }) {
+    return Card(
+      color: Colors.white.withOpacity(0.1),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          obscureText: obscureText,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: const TextStyle(color: Colors.white),
+            border: InputBorder.none,
+          ),
+          validator: validator,
         ),
       ),
     );
