@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -20,9 +23,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _profileImageUrl;
   bool _loading = false;
+  bool _uploadingImage = false;
   String? _error;
 
   final User? user = FirebaseAuth.instance.currentUser;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -104,8 +109,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _pickProfileImage() {
-    // Future implementation
+  Future<void> _pickProfileImage() async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _uploadingImage = true;
+          _error = null;
+        });
+
+        // Upload image to Firebase Storage
+        final String fileName = 'profile_images/${user!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+        
+        final UploadTask uploadTask = storageRef.putFile(File(pickedFile.path));
+        final TaskSnapshot snapshot = await uploadTask;
+        
+        final String downloadUrl = await snapshot.ref.getDownloadURL();
+        
+        setState(() {
+          _profileImageUrl = downloadUrl;
+          _uploadingImage = false;
+        });
+
+        // Optionally auto-save the profile image URL to Firestore
+        await FirebaseFirestore.instance.collection('users').doc(user!.uid).update({
+          'profileImageUrl': downloadUrl,
+        });
+
+        setState(() {
+          _error = 'Profile picture uploaded successfully!';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _uploadingImage = false;
+        _error = 'Failed to upload image: ${e.toString()}';
+      });
+    }
   }
 
   @override
@@ -154,18 +201,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               Center(
-                child: GestureDetector(
-                  onTap: _pickProfileImage,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                        ? NetworkImage(_profileImageUrl!)
-                        : null,
-                    child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                        ? const Icon(Icons.person, size: 50, color: Colors.white70)
-                        : null,
-                    backgroundColor: Colors.deepPurple.shade300,
-                  ),
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: _pickProfileImage,
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                ? NetworkImage(_profileImageUrl!)
+                                : null,
+                            child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                                ? const Icon(Icons.person, size: 50, color: Colors.white70)
+                                : null,
+                            backgroundColor: Colors.deepPurple.shade300,
+                          ),
+                          if (_uploadingImage)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: _uploadingImage ? null : _pickProfileImage,
+                      icon: _uploadingImage 
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.deepPurple,
+                              ),
+                            )
+                          : const Icon(Icons.photo_camera, size: 18),
+                      label: Text(_uploadingImage ? 'Uploading...' : 'Upload Photo'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
