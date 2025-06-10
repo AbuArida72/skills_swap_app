@@ -7,10 +7,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _loading = false;
-  String? _error;
+  final email = TextEditingController();
+  final pass = TextEditingController();
+  bool loading = false;
+  String? error;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -18,24 +18,24 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _loading = true;
-      _error = null;
+      loading = true;
+      error = null;
     });
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email: email.text.trim(),
+        password: pass.text.trim(),
       );
       Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (e) {
       setState(() {
-        _error = e.message;
+        error = e.message;
       });
     } finally {
       if (mounted) {
         setState(() {
-          _loading = false;
+          loading = false;
         });
       }
     }
@@ -84,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       SizedBox(height: 20),
-                      if (_error != null)
+                      if (error != null)
                         Container(
                           padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -97,16 +97,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  _error!,
+                                  error!,
                                   style: TextStyle(color: Colors.white),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      if (_error != null) SizedBox(height: 16),
+                      if (error != null) SizedBox(height: 16),
                       TextFormField(
-                        controller: _emailController,
+                        controller: email,
                         keyboardType: TextInputType.emailAddress,
                         style: TextStyle(color: Colors.deepPurple.shade900),
                         decoration: InputDecoration(
@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: 24),
                       TextFormField(
-                        controller: _passwordController,
+                        controller: pass,
                         obscureText: true,
                         style: TextStyle(color: Colors.deepPurple.shade900),
                         decoration: InputDecoration(
@@ -154,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                       SizedBox(height: 32),
-                      _loading
+                      loading
                           ? CircularProgressIndicator(
                               color: Colors.deepPurple,
                             )

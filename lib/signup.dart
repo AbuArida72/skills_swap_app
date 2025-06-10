@@ -8,16 +8,16 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _usernameController = TextEditingController();
+  final key = GlobalKey<FormState>();
+  final email = TextEditingController();
+  final pass = TextEditingController();
+  final username = TextEditingController();
 
   bool _loading = false;
   String? _error;
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!key.currentState!.validate()) return;
 
     setState(() {
       _loading = true;
@@ -27,15 +27,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email: email.text.trim(),
+        password: pass.text.trim(),
       );
 
       User? user = userCredential.user;
 
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
-        'email': _emailController.text.trim(),
-        'username': _usernameController.text.trim(),
+        'email': email.text.trim(),
+        'username': username.text.trim(),
         'bio': '',
         'courses': [],
       });
@@ -82,7 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Form(
-                  key: _formKey,
+                  key: key,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -117,7 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       if (_error != null) const SizedBox(height: 16),
                       TextFormField(
-                        controller: _usernameController,
+                        controller: username,
                         decoration: const InputDecoration(
                           labelText: 'Username',
                           labelStyle: TextStyle(color: Colors.deepPurple),
@@ -131,7 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
-                        controller: _emailController,
+                        controller: email,
                         keyboardType: TextInputType.emailAddress,
                         decoration: const InputDecoration(
                           labelText: 'Email',
@@ -152,7 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
-                        controller: _passwordController,
+                        controller: pass,
                         obscureText: true,
                         decoration: const InputDecoration(
                           labelText: 'Password',

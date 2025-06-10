@@ -12,9 +12,9 @@ class SkillDetailScreen extends StatefulWidget {
 
 class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTickerProviderStateMixin {
   final user = FirebaseAuth.instance.currentUser;
-  bool _enrolled = false;
-  bool _loading = false;
-
+  bool enrolled = false;
+  bool loading = false;
+  
   late AnimationController _btnController;
   late Animation<double> _scaleAnimation;
 
@@ -46,13 +46,13 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTicker
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
     final courses = userDoc['courses'] as List<dynamic>? ?? [];
     setState(() {
-      _enrolled = courses.contains('${widget.skill['title']} Course');
+      enrolled = courses.contains('${widget.skill['title']} Course');
     });
   }
 
   Future<void> _toggleEnrollment() async {
     if (user == null) return;
-    setState(() => _loading = true);
+    setState(() => loading = true);
 
     final userRef = FirebaseFirestore.instance.collection('users').doc(user!.uid);
     final courseName = '${widget.skill['title']} Course';
@@ -60,7 +60,7 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTicker
     final userDoc = await userRef.get();
     final courses = userDoc['courses'] as List<dynamic>? ?? [];
 
-    if (_enrolled) {
+    if (enrolled) {
       courses.remove(courseName);
     } else {
       courses.add(courseName);
@@ -68,15 +68,15 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTicker
 
     await userRef.update({'courses': courses});
     setState(() {
-      _enrolled = !_enrolled;
-      _loading = false;
+      enrolled = !enrolled;
+      loading = false;
     });
   }
 
   Future<void> _deleteSkill() async {
     if (user == null || widget.skill['ownerId'] != user!.uid) return;
 
-    setState(() => _loading = true);
+    setState(() => loading = true);
 
     try {
       await FirebaseFirestore.instance.collection('skills').doc(widget.skill.id).delete();
@@ -89,7 +89,7 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTicker
         SnackBar(content: Text('Failed to delete skill: $e')),
       );
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -173,32 +173,32 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTicker
                 onTapDown: (_) => _btnController.forward(),
                 onTapUp: (_) => _btnController.reverse(),
                 onTapCancel: () => _btnController.reverse(),
-                onTap: _loading ? null : _toggleEnrollment,
+                onTap: loading ? null : _toggleEnrollment,
                 child: ScaleTransition(
                   scale: _scaleAnimation,
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     decoration: BoxDecoration(
-                      color: _enrolled ? Colors.redAccent : Colors.deepPurple,
+                      color: enrolled ? Colors.redAccent : Colors.deepPurple,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: (_enrolled ? Colors.redAccent : Colors.deepPurple).withOpacity(0.4),
+                          color: (enrolled ? Colors.redAccent : Colors.deepPurple).withOpacity(0.4),
                           blurRadius: 12,
                           offset: const Offset(0, 6),
                         ),
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: _loading
+                    child: loading
                         ? const SizedBox(
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                           )
                         : Text(
-                            _enrolled ? 'Unenroll from Course' : 'Enroll in Course',
+                            enrolled ? 'Unenroll from Course' : 'Enroll in Course',
                             style: const TextStyle(
                               fontSize: 20,
                               color: Colors.white,
@@ -216,7 +216,7 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTicker
                   onTapDown: (_) => _btnController.forward(),
                   onTapUp: (_) => _btnController.reverse(),
                   onTapCancel: () => _btnController.reverse(),
-                  onTap: _loading ? null : _deleteSkill,
+                  onTap: loading ? null : _deleteSkill,
                   child: ScaleTransition(
                     scale: _scaleAnimation,
                     child: Container(
@@ -234,7 +234,7 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> with SingleTicker
                         ],
                       ),
                       alignment: Alignment.center,
-                      child: _loading
+                      child: loading
                           ? const SizedBox(
                               height: 24,
                               width: 24,

@@ -10,26 +10,26 @@ class AddSkillScreen extends StatefulWidget {
 }
 
 class _AddSkillScreenState extends State<AddSkillScreen> {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  String _location = 'Amman';
-  bool _loading = false;
+  final title = TextEditingController();
+  final description = TextEditingController();
+  final key = GlobalKey<FormState>();
+  String location = 'Amman';
+  bool loading = false;
   final user = FirebaseAuth.instance.currentUser;
 
-  final List<String> _locations = ['Amman', 'Aqaba', 'Irbid', 'Online'];
+  final List<String> locations = ['Amman', 'Aqaba', 'Irbid', 'Online'];
 
   Future<void> _addSkill() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!key.currentState!.validate()) return;
     if (user == null) return;
 
-    setState(() => _loading = true);
+    setState(() => loading = true);
 
     try {
       await FirebaseFirestore.instance.collection('skills').add({
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'location': _location,
+        'title': title.text.trim(),
+        'description': description.text.trim(),
+        'location': location,
         'ownerId': user!.uid,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -40,14 +40,14 @@ class _AddSkillScreenState extends State<AddSkillScreen> {
         SnackBar(content: Text('Error adding skill: $e')),
       );
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => loading = false);
     }
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
+    title.dispose();
+    description.dispose();
     super.dispose();
   }
 
@@ -66,7 +66,7 @@ class _AddSkillScreenState extends State<AddSkillScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Form(
-              key: _formKey,
+              key: key,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -81,7 +81,7 @@ class _AddSkillScreenState extends State<AddSkillScreen> {
                   const SizedBox(height: 20),
 
                   TextFormField(
-                    controller: _titleController,
+                    controller: title,
                     decoration: const InputDecoration(
                       labelText: 'Skill Title',
                       border: OutlineInputBorder(),
@@ -91,7 +91,7 @@ class _AddSkillScreenState extends State<AddSkillScreen> {
                   const SizedBox(height: 20),
 
                   TextFormField(
-                    controller: _descriptionController,
+                    controller: description,
                     maxLines: 4,
                     decoration: const InputDecoration(
                       labelText: 'Skill Description',
@@ -108,12 +108,12 @@ class _AddSkillScreenState extends State<AddSkillScreen> {
                   const SizedBox(height: 8),
 
                   DropdownButtonFormField<String>(
-                    value: _location,
-                    items: _locations.map((loc) => DropdownMenuItem(
+                    value: location,
+                    items: locations.map((loc) => DropdownMenuItem(
                       value: loc,
                       child: Text(loc),
                     )).toList(),
-                    onChanged: (value) => setState(() => _location = value!),
+                    onChanged: (value) => setState(() => location = value!),
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                     ),
@@ -124,13 +124,13 @@ class _AddSkillScreenState extends State<AddSkillScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _loading ? null : _addSkill,
+                      onPressed: loading ? null : _addSkill,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: _loading
+                      child: loading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('Add Skill', style: TextStyle(fontSize: 18)),
                     ),

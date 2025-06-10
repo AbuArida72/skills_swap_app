@@ -13,18 +13,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
 
-  final _usernameController = TextEditingController();
-  final _bioController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _oldPasswordController = TextEditingController();
-  final _newPasswordController = TextEditingController();
+  final key = GlobalKey<FormState>();
+  final username = TextEditingController();
+  final biography = TextEditingController();
+  final email = TextEditingController();
+  final pass1 = TextEditingController();
+  final pass2 = TextEditingController();
 
-  String? _profileImageUrl;
-  bool _loading = false;
-  bool _uploadingImage = false;
-  String? _error;
+  String? image;
+  bool loading = false;
+  bool upload = false;
+  String? error;
 
   final User? user = FirebaseAuth.instance.currentUser;
   final ImagePicker _imagePicker = ImagePicker();
@@ -33,14 +33,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     if (user != null) {
-      _emailController.text = user!.email ?? '';
+      email.text = user!.email ?? '';
       FirebaseFirestore.instance.collection('users').doc(user!.uid).get().then((doc) {
         if (doc.exists) {
           final data = doc.data()!;
-          _usernameController.text = data['username'] ?? '';
-          _bioController.text = data['bio'] ?? '';
+          username.text = data['username'];
+          biography.text = data['bio'];
           setState(() {
-            _profileImageUrl = data['profileImageUrl'];
+            image = data['profileImageUrl'];
           });
         }
       });
@@ -48,63 +48,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!key.currentState!.validate()) return;
 
     setState(() {
-      _loading = true;
-      _error = null;
+      loading = true;
+      error = null;
     });
 
     try {
-      if (_emailController.text.trim() != user!.email) {
-        if (_oldPasswordController.text.isEmpty) {
+      if (email.text.trim() != user!.email) {
+        if (pass1.text.isEmpty) {
           setState(() {
-            _error = 'Please enter your current password to update email.';
-            _loading = false;
+            error = 'Please enter your current password to update email.';
+            loading = false;
           });
           return;
         }
         final credential = EmailAuthProvider.credential(
           email: user!.email!,
-          password: _oldPasswordController.text,
+          password: pass1.text,
         );
         await user!.reauthenticateWithCredential(credential);
-        await user!.updateEmail(_emailController.text.trim());
+        await user!.updateEmail(email.text.trim());
       }
 
-      if (_newPasswordController.text.isNotEmpty) {
-        if (_oldPasswordController.text.isEmpty) {
+      if (pass2.text.isNotEmpty) {
+        if (pass1.text.isEmpty) {
           setState(() {
-            _error = 'Please enter your current password to update password.';
-            _loading = false;
+            error = 'Please enter your current password to update password.';
+            loading = false;
           });
           return;
         }
         final credential = EmailAuthProvider.credential(
           email: user!.email!,
-          password: _oldPasswordController.text,
+          password: pass1.text,
         );
         await user!.reauthenticateWithCredential(credential);
-        await user!.updatePassword(_newPasswordController.text);
+        await user!.updatePassword(pass2.text);
       }
 
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
-        'username': _usernameController.text.trim(),
-        'bio': _bioController.text.trim(),
-        'profileImageUrl': _profileImageUrl ?? '',
-        'email': _emailController.text.trim(),
+        'username': username.text.trim(),
+        'bio': biography.text.trim(),
+        'profileImageUrl': image ?? '',
+        'email': email.text.trim(),
       }, SetOptions(merge: true));
 
       setState(() {
-        _error = 'Profile updated successfully!';
+        error = 'Profile updated successfully!';
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        error = e.toString();
       });
     } finally {
       setState(() {
-        _loading = false;
+        loading = false;
       });
     }
   }
@@ -120,11 +120,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (pickedFile != null) {
         setState(() {
-          _uploadingImage = true;
-          _error = null;
+          upload = true;
+          error = null;
         });
 
-        // Upload image to Firebase Storage
         final String fileName = 'profile_images/${user!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
         
@@ -134,34 +133,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final String downloadUrl = await snapshot.ref.getDownloadURL();
         
         setState(() {
-          _profileImageUrl = downloadUrl;
-          _uploadingImage = false;
+          image = downloadUrl;
+          upload = false;
         });
 
-        // Optionally auto-save the profile image URL to Firestore
         await FirebaseFirestore.instance.collection('users').doc(user!.uid).update({
           'profileImageUrl': downloadUrl,
         });
 
         setState(() {
-          _error = 'Profile picture uploaded successfully!';
+          error = 'Profile picture uploaded successfully!';
         });
       }
     } catch (e) {
       setState(() {
-        _uploadingImage = false;
-        _error = 'Failed to upload image: ${e.toString()}';
+        upload = false;
+        error = 'Failed to upload image: ${e.toString()}';
       });
     }
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _bioController.dispose();
-    _emailController.dispose();
-    _oldPasswordController.dispose();
-    _newPasswordController.dispose();
+    username.dispose();
+    biography.dispose();
+    email.dispose();
+    pass1.dispose();
+    pass2.dispose();
     super.dispose();
   }
 
@@ -186,16 +184,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Form(
-          key: _formKey,
+          key: key,
           child: ListView(
             children: [
-              if (_error != null)
+              if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    _error!,
+                    error!,
                     style: TextStyle(
-                      color: _error!.contains('success') ? Colors.greenAccent : Colors.redAccent,
+                      color: error!.contains('success') ? Colors.greenAccent : Colors.redAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -209,15 +207,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 50,
-                            backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                ? NetworkImage(_profileImageUrl!)
+                            backgroundImage: image != null && image!.isNotEmpty
+                                ? NetworkImage(image!)
                                 : null,
-                            child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                            child: image == null || image!.isEmpty
                                 ? const Icon(Icons.person, size: 50, color: Colors.white70)
                                 : null,
                             backgroundColor: Colors.deepPurple.shade300,
                           ),
-                          if (_uploadingImage)
+                          if (upload)
                             Positioned.fill(
                               child: Container(
                                 decoration: BoxDecoration(
@@ -237,8 +235,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
-                      onPressed: _uploadingImage ? null : _pickProfileImage,
-                      icon: _uploadingImage 
+                      onPressed: upload ? null : _pickProfileImage,
+                      icon: upload 
                           ? const SizedBox(
                               width: 16,
                               height: 16,
@@ -248,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             )
                           : const Icon(Icons.photo_camera, size: 18),
-                      label: Text(_uploadingImage ? 'Uploading...' : 'Upload Photo'),
+                      label: Text(upload ? 'Uploading...' : 'Upload Photo'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.deepPurple,
@@ -264,19 +262,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
               _buildInputCard(
                 label: 'Username',
-                controller: _usernameController,
+                controller: username,
                 validator: (val) => val == null || val.trim().isEmpty ? 'Username cannot be empty' : null,
               ),
               const SizedBox(height: 16),
               _buildInputCard(
                 label: 'Bio',
-                controller: _bioController,
+                controller: biography,
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
               _buildInputCard(
                 label: 'Email',
-                controller: _emailController,
+                controller: email,
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Email cannot be empty';
                   if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w]{2,4}').hasMatch(val)) {
@@ -288,13 +286,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               _buildInputCard(
                 label: 'Current Password',
-                controller: _oldPasswordController,
+                controller: pass1,
                 obscureText: true,
               ),
               const SizedBox(height: 16),
               _buildInputCard(
                 label: 'New Password',
-                controller: _newPasswordController,
+                controller: pass2,
                 obscureText: true,
                 validator: (val) {
                   if (val != null && val.isNotEmpty && val.length < 6) {
@@ -304,7 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               const SizedBox(height: 24),
-              _loading
+              loading
                   ? const Center(child: CircularProgressIndicator(color: Colors.white))
                   : ElevatedButton(
                       onPressed: _saveProfile,
